@@ -1,4 +1,7 @@
-This is a barebones 3D fluid simulator for animating inviscid free surface liquids.
+This is a barebones 3D fluid simulator for animating viscous free surface liquids.
+It implements the variational viscosity method from "Accurate Viscous Free Surfaces for Buckling, 
+Coiling, and Rotating Liquids" by Batty and Bridson, Symposium on Computer Animation, 2008.
+http://www.cs.ubc.ca/nest/imager/tr/2008/Batty_ViscousFluids/
 The "viewpls3D" sub-project provides a simple viewer for the resulting data.
 
 Questions or comments, contact:
