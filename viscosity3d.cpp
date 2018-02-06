@@ -276,7 +276,7 @@ void advance_viscosity_implicit_weighted(Array3f& u, Array3f& v, Array3f& w,
          matrix.add_to_element(index, index, +factor*visc_front*vol_front);
          if (v_state(i, j, k + 1) == FLUID)
             matrix.add_to_element(index, v_ind(i, j, k + 1, nx, ny, nz), -factor*visc_front*vol_front);
-         else if (v_state(i + 1, j, k) == SOLID)
+         else if (v_state(i, j, k + 1) == SOLID)
             rhs[index] -= -v(i, j, k + 1)*factor*visc_front*vol_front;
 
          //v_z_back
