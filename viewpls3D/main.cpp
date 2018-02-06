@@ -22,7 +22,7 @@ unsigned int highest_frame = 0;
 bool filming = false;
 bool running = false;
 
-char * ppmfileformat;
+char * sgifileformat;
 
 std::vector<Vec3f> particles;
 float particle_radius;
@@ -106,7 +106,7 @@ void set_lights_and_material(int object)
 void timer(int value)
 {
    if(filming) {
-      Gluvi::ppm_screenshot(ppmfileformat, frame);
+      Gluvi::sgi_screenshot(sgifileformat, frame);
       if(read_frame(frame+1)) {
          if(frame == 0) {
             filming = false;
@@ -217,7 +217,7 @@ struct ScreenShotButton : public Gluvi::Button{
    ScreenShotButton(const char *label, const char *filename_format_) : Gluvi::Button(label), filename_format(filename_format_) {}
    void action()
    { 
-      Gluvi::ppm_screenshot(filename_format, frame); 
+      Gluvi::sgi_screenshot(filename_format, frame); 
    }
 };
 
@@ -352,14 +352,14 @@ int main(int argc, char **argv)
    Gluvi::StaticText frametext(frame_number.c_str());
    Gluvi::root.list.push_back(&frametext);
 
-   ppmfileformat = new char[strlen(file_path.c_str())+100];
-   sprintf(ppmfileformat, "%sscreenshot%%04d.ppm", file_path.c_str());
-   printf("%s\n", ppmfileformat);
+   sgifileformat = new char[strlen(file_path.c_str())+100];
+   sprintf(sgifileformat, "%sscreenshot%%04d.sgi", file_path.c_str());
+   printf("%s\n", sgifileformat);
 
-   ScreenShotButton screenshot("Screenshot", ppmfileformat);
+   ScreenShotButton screenshot("Screenshot", sgifileformat);
    Gluvi::root.list.push_back(&screenshot);
 
-   MovieButton movie("Movie", ppmfileformat);
+   MovieButton movie("Movie", sgifileformat);
    Gluvi::root.list.push_back(&movie);
 
    RunButton run("Run");
