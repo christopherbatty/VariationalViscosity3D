@@ -31,8 +31,8 @@ void FluidSim::initialize(float width, int ni_, int nj_, int nk_) {
    old_valid.resize(ni+1, nj+1, nk+1);
    liquid_phi.resize(ni,nj,nk);
 
-   //set viscosity to 1
-   viscosity.resize(ni+1, nj+1, nk+1, 1.0);
+   //set viscosity 
+   viscosity.resize(ni+1, nj+1, nk+1, 1.0f);
 
    c_vol_liquid.resize(ni,nj,nk, 0);
    u_vol_liquid.resize(ni+1,nj,nk, 0);
@@ -200,6 +200,98 @@ void estimate_volume_fractions(Array3f& volumes,
 
 void FluidSim::compute_viscosity_weights() {
 
+  
+   //These weights need to be mutually consistent, 
+   //otherwise bits and pieces can get left hanging in the air, when there is inconsistent volumes.
+
+   //try estimating a consistent set of volume fractions by double-dividing the space
+   Array3f double_size_grid(2 * ni, 2 * nj, 2 * nk);
+   estimate_volume_fractions(double_size_grid, Vec3f(0.25f*dx, 0.25f*dx, 0.25f*dx), 0.5f*dx, liquid_phi, Vec3f(0, 0, 0), dx);
+
+   //work out c
+   for (int k = 0; k < nk; ++k) for (int j = 0; j < nj; ++j) for (int i = 0; i < ni; ++i) {
+      c_vol_liquid(i, j, k) = 0;
+      for (int k_off = 0; k_off < 2; ++k_off) for (int j_off = 0; j_off < 2; ++j_off)  for (int i_off = 0; i_off < 2; ++i_off)  {
+         c_vol_liquid(i, j, k) += double_size_grid(2 * i + i_off, 2 * j + j_off, 2 * k + k_off);
+      }
+      c_vol_liquid(i, j, k) /= 8;
+   }
+
+   //work out u
+   for (int k = 0; k < nk; ++k) for (int j = 0; j < nj; ++j) for (int i = 1; i < ni; ++i) {
+      u_vol_liquid(i, j, k) = 0;
+      int base_i = 2 * i - 1;
+      int base_j = 2 * j;
+      int base_k = 2 * k;
+      for (int k_off = 0; k_off < 2; ++k_off) for (int j_off = 0; j_off < 2; ++j_off)  for (int i_off = 0; i_off < 2; ++i_off)  {
+         u_vol_liquid(i, j, k) += double_size_grid(base_i + i_off, base_j + j_off, base_k + k_off);
+      }
+      u_vol_liquid(i, j, k) /= 8;
+   }
+
+   //v
+   for (int k = 0; k < nk; ++k) for (int j = 1; j < nj; ++j) for (int i = 0; i < ni; ++i) {
+      v_vol_liquid(i, j, k) = 0;
+      int base_i = 2 * i;
+      int base_j = 2 * j - 1;
+      int base_k = 2 * k;
+      for (int k_off = 0; k_off < 2; ++k_off) for (int j_off = 0; j_off < 2; ++j_off)  for (int i_off = 0; i_off < 2; ++i_off)  {
+         v_vol_liquid(i, j, k) += double_size_grid(base_i + i_off, base_j + j_off, base_k + k_off);
+      }
+      v_vol_liquid(i, j, k) /= 8;
+   }
+
+   //w
+   for (int k = 1; k < nk; ++k) for (int j = 0; j < nj; ++j) for (int i = 0; i < ni; ++i) {
+      w_vol_liquid(i, j, k) = 0;
+      int base_i = 2 * i;
+      int base_j = 2 * j;
+      int base_k = 2 * k - 1;
+      for (int k_off = 0; k_off < 2; ++k_off) for (int j_off = 0; j_off < 2; ++j_off)  for (int i_off = 0; i_off < 2; ++i_off)  {
+         w_vol_liquid(i, j, k) += double_size_grid(base_i + i_off, base_j + j_off, base_k + k_off);
+      }
+      w_vol_liquid(i, j, k) /= 8;
+   }
+
+   //now the e-terms
+
+   //e-x
+   for (int k = 1; k < nk; ++k) for (int j = 1; j < nj; ++j) for (int i = 0; i < ni; ++i) {
+      ex_vol_liquid(i, j, k) = 0;
+      int base_i = 2 * i;
+      int base_j = 2 * j - 1;
+      int base_k = 2 * k - 1;
+      for (int k_off = 0; k_off < 2; ++k_off) for (int j_off = 0; j_off < 2; ++j_off)  for (int i_off = 0; i_off < 2; ++i_off)  {
+         ex_vol_liquid(i, j, k) += double_size_grid(base_i + i_off, base_j + j_off, base_k + k_off);
+      }
+      ex_vol_liquid(i, j, k) /= 8;
+   }
+
+   //e-y
+   for (int k = 1; k < nk; ++k) for (int j = 0; j < nj; ++j) for (int i = 1; i < ni; ++i) {
+      ey_vol_liquid(i, j, k) = 0;
+      int base_i = 2 * i - 1;
+      int base_j = 2 * j;
+      int base_k = 2 * k - 1;
+      for (int k_off = 0; k_off < 2; ++k_off) for (int j_off = 0; j_off < 2; ++j_off)  for (int i_off = 0; i_off < 2; ++i_off)  {
+         ey_vol_liquid(i, j, k) += double_size_grid(base_i + i_off, base_j + j_off, base_k + k_off);
+      }
+      ey_vol_liquid(i, j, k) /= 8;
+   }
+
+   //e-z
+   for (int k = 0; k < nk; ++k) for (int j = 1; j < nj; ++j) for (int i = 1; i < ni; ++i) {
+      ez_vol_liquid(i, j, k) = 0;
+      int base_i = 2 * i - 1;
+      int base_j = 2 * j - 1;
+      int base_k = 2 * k;
+      for (int k_off = 0; k_off < 2; ++k_off) for (int j_off = 0; j_off < 2; ++j_off)  for (int i_off = 0; i_off < 2; ++i_off)  {
+         ez_vol_liquid(i, j, k) += double_size_grid(base_i + i_off, base_j + j_off, base_k + k_off);
+      }
+      ez_vol_liquid(i, j, k) /= 8;
+   }
+
+   /*
    estimate_volume_fractions(c_vol_liquid,  Vec3f(0.5f*dx, 0.5f*dx, 0.5f*dx), dx, liquid_phi, Vec3f(0,0,0), dx); 
    estimate_volume_fractions(u_vol_liquid,  Vec3f(0,       0.5f*dx, 0.5f*dx), dx, liquid_phi, Vec3f(0,0,0), dx); 
    estimate_volume_fractions(v_vol_liquid,  Vec3f(0.5f*dx, 0,       0.5f*dx), dx, liquid_phi, Vec3f(0,0,0), dx); 
@@ -207,7 +299,7 @@ void FluidSim::compute_viscosity_weights() {
    estimate_volume_fractions(ex_vol_liquid, Vec3f(0.5f*dx, 0,       0),       dx, liquid_phi, Vec3f(0,0,0), dx); 
    estimate_volume_fractions(ey_vol_liquid, Vec3f(0,       0.5f*dx, 0),       dx, liquid_phi, Vec3f(0,0,0), dx); 
    estimate_volume_fractions(ez_vol_liquid, Vec3f(0,       0,       0.5f*dx), dx, liquid_phi, Vec3f(0,0,0), dx);
-
+   */
 }
 
 
